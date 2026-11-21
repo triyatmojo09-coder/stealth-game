@@ -4,11 +4,22 @@
 //   P player start   G guard spawn (patrol set below)   I intel objective
 //   E exit   K keycard pickup   o coin pickup   D keycard door   L laser post
 // Maps are 40 x 22 tiles. Waypoints are tile coordinates {x, y}.
+// Each facility also carries its mission brief: the operation name, the
+// objective list, and site intel written from the actual layout below.
 
 export const LEVELS = [
   {
     name: 'THE ARCHIVE',
-    briefing: 'Slip past the night shift. Steal the intel, reach the exit unseen.',
+    op: 'OPERATION QUIET LEDGER',
+    objectives: [
+      'Lift the cipher ledger from the reading room (north-east)',
+      'Cross back through the stacks to the service exit (south-east)',
+    ],
+    intel: [
+      'Two guards on the floor: one walks a square loop through the reading room, the other holds the south corridor by the exit.',
+      'One ceiling camera sweeps the junction east of the stacks — its beam cannot reach the unlit alcove in the reading room.',
+      'The reading room floor is unlit carpet. Cross it crouched and the ledger is yours before anyone looks up.',
+    ],
     map: [
       '########################################',
       '#...........#.............#............#',
@@ -44,7 +55,17 @@ export const LEVELS = [
   },
   {
     name: 'THE VAULT',
-    briefing: 'The vault needs a keycard. Cross the laser grid while it blinks off.',
+    op: 'OPERATION COLD VAULT',
+    objectives: [
+      'Take the vault keycard from the teller office (west wing)',
+      'Pass the keycard door and time the laser grid on the vault approach',
+      'Lift the bearer bonds from the vault chamber, then reach the exit',
+    ],
+    intel: [
+      'Three guards: one circles the lobby, one works the corridor under the vault, and a third never leaves the vault floor itself.',
+      'The laser grid cycles 2.4 seconds live, 1.5 seconds dark. Cross on the dark beat — a live beam raises the whole building.',
+      'Two cameras sweep the central hall from the dividing wall. The shadow strips in the west offices break their line cold.',
+    ],
     map: [
       '########################################',
       '#.........#.........#.........#..L.....#',
@@ -84,7 +105,17 @@ export const LEVELS = [
   },
   {
     name: 'THE CORE',
-    briefing: 'Guards, cameras and lasers everywhere. Ghost it: never be spotted.',
+    op: 'OPERATION DEAD SIGNAL',
+    objectives: [
+      'Take the core keycard from the server office (west wing)',
+      'Thread the laser wall on the core approach (north-east)',
+      'Pull the drive from the core chamber and reach the exit unseen',
+    ],
+    intel: [
+      'Four guards and three cameras share this floor. Two guards walk stacked loops in the server hall — their cones overlap at the crossing.',
+      'A vertical laser wall guards the lower hall by the south offices; it blinks on the same 2.4 / 1.5 cycle as the core approach grid.',
+      'The unlit maintenance strip runs the length of the west wall. A patient operative crosses the whole site inside it.',
+    ],
     map: [
       '########################################',
       '#.........#.............#..............#',

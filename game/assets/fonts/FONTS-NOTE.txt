@@ -1,0 +1,11 @@
+Bundled typefaces for Shadow Protocol — both are open-source fonts
+licensed under the SIL Open Font License 1.1, subset to Latin characters
+and converted to woff2 for this game. No network is ever used to load them.
+
+- Black Ops One (blackops.woff2) — designed by James L. DeLaHunt / the
+  Black Ops project (Sorkin Type). Display face used for titles and stamps.
+- Rajdhani (rajdhani-medium.woff2, rajdhani-semibold.woff2,
+  rajdhani-bold.woff2) — designed by Indian Type Foundry. HUD and body face.
+
+Source: the google/fonts repository (github.com/google/fonts), which
+distributes both families under the SIL Open Font License 1.1.

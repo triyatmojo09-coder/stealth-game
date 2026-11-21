@@ -7,37 +7,60 @@ export const VIEW_H = 720;
 export const MAP_W = 40;
 export const MAP_H = 22;
 
+// Bundled typefaces (game/assets/fonts, loaded by index.html @font-face).
+export const FONT_DISPLAY = "'Black Ops One', 'Rajdhani', sans-serif";
+export const FONT_UI = "'Rajdhani', sans-serif";
+
 export const COLORS = {
-  floorA: '#1c2433',
-  floorB: '#182031',
-  shadowFloor: '#0d1322',
-  shadowEdge: '#233250',
-  wall: '#3a4a66',
-  wallTop: '#5a6f96',
-  wallSide: '#2a3852',
-  conePatrol: 'rgba(255, 214, 64, 0.20)',
-  conePatrolEdge: 'rgba(255, 214, 64, 0.55)',
-  coneSuspicious: 'rgba(255, 150, 40, 0.26)',
+  // Floors: deep slate-navy plate metal, read at a glance against the walls.
+  floorA: '#232c3e',
+  floorB: '#202838',
+  floorSeam: 'rgba(6, 9, 16, 0.55)',
+  floorSheen: 'rgba(140, 170, 220, 0.05)',
+  carpetA: '#2d3352',
+  carpetB: '#29304c',
+  shadowFloor: '#0b101d',
+  shadowFloorB: '#090e19',
+  shadowEdge: '#31436b',
+  // Walls: bevelled blocks — dark base, lit top face, shadowed skirt.
+  wall: '#46587a',
+  wallTop: '#7186ad',
+  wallFace: '#54688c',
+  wallSide: '#232f47',
+  wallSeam: '#141c2d',
+  // Vision cones: [inner, outer] gradient stops per watcher state.
+  conePatrol: ['rgba(255, 216, 84, 0.30)', 'rgba(255, 196, 40, 0.02)'],
+  conePatrolEdge: 'rgba(255, 214, 64, 0.5)',
+  coneSuspicious: ['rgba(255, 156, 44, 0.38)', 'rgba(255, 130, 20, 0.03)'],
   coneSuspiciousEdge: 'rgba(255, 150, 40, 0.65)',
-  coneAlarm: 'rgba(255, 60, 50, 0.30)',
+  coneAlarm: ['rgba(255, 66, 52, 0.42)', 'rgba(255, 40, 30, 0.04)'],
   coneAlarmEdge: 'rgba(255, 60, 50, 0.75)',
-  coneCamera: 'rgba(120, 220, 255, 0.16)',
+  coneCamera: ['rgba(110, 216, 255, 0.26)', 'rgba(90, 190, 255, 0.02)'],
   coneCameraEdge: 'rgba(120, 220, 255, 0.5)',
+  // Light pools cast by ceiling fixtures over the playfield.
+  lightPool: 'rgba(255, 226, 160, 0.055)',
+  // Figures.
   player: '#2fd4c4',
   playerDark: '#0e7d74',
+  playerHood: '#0a2e33',
   guard: '#ff5a4e',
-  guardDark: '#a12720',
+  guardDark: '#8f231c',
+  guardGear: '#5d1712',
   guardKnocked: '#7a4a44',
+  // Objectives and pickups.
   intel: '#ffd23f',
   exit: '#3dff7a',
   keycard: '#ffe066',
   coin: '#ffcf3f',
   laser: '#ff2e4d',
-  hudBg: 'rgba(8, 12, 24, 0.82)',
-  hudText: '#e8eefc',
-  hudDim: '#9fb0d0',
+  // Interface.
+  hudBg: 'rgba(7, 11, 20, 0.88)',
+  hudLine: 'rgba(126, 166, 224, 0.35)',
+  hudText: '#e9effc',
+  hudDim: '#93a7c9',
   danger: '#ff5a4e',
   ok: '#3dff7a',
+  accent: '#ffd23f',
 };
 
 export const TUNING = {
@@ -87,4 +110,4 @@ export const TUNING = {
 export const PAR_TIMES = [75, 110, 150];
 
 export const GAME_TITLE = 'SHADOW PROTOCOL';
-export const GAME_SUBTITLE = 'a quiet infiltration in three facilities';
+export const GAME_SUBTITLE = 'THREE SITES. ONE OPERATIVE. NO WITNESSES.';

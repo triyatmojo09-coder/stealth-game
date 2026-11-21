@@ -36,6 +36,52 @@ export class Game {
     this.buttons = [];
     this.laserCooldown = 0;
     this.caughtBy = null;
+    // Presentation only: particles, floating score text, the mission
+    // brief overlay flag, and a free-running UI clock for stamp animation.
+    this.particles = [];
+    this.floaters = [];
+    this.briefing = false;
+    this.briefTimer = 0;
+    this.uiTime = 0;
+    this.stampAt = 0;
+  }
+
+  // ---- feedback effects (drawn by the renderer; no gameplay effect) ----
+
+  burst(x, y, color, count, speed) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const v = (0.3 + Math.random() * 0.7) * (speed || 90);
+      this.particles.push({
+        x, y,
+        vx: Math.cos(a) * v,
+        vy: Math.sin(a) * v,
+        life: 0.45 + Math.random() * 0.3,
+        maxLife: 0.75,
+        size: 1.5 + Math.random() * 2.5,
+        color,
+      });
+    }
+  }
+
+  floater(x, y, text, color) {
+    this.floaters.push({ x, y, text, color: color || '#ffd23f', life: 1.1 });
+  }
+
+  updateFx(dt) {
+    for (const p of this.particles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 1 - 2.4 * dt;
+      p.vy *= 1 - 2.4 * dt;
+      p.life -= dt;
+    }
+    this.particles = this.particles.filter((p) => p.life > 0);
+    for (const f of this.floaters) {
+      f.y -= 26 * dt;
+      f.life -= dt;
+    }
+    this.floaters = this.floaters.filter((f) => f.life > 0);
   }
 
   // ---- level loading ----
@@ -63,7 +109,9 @@ export class Game {
       def,
       grid,
       name: def.name,
-      briefing: def.briefing,
+      op: def.op,
+      objectives: def.objectives,
+      intelNotes: def.intel,
       intel: intel ? { x: (intel.x + 0.5) * TILE, y: (intel.y + 0.5) * TILE, taken: false } : null,
       exit: exit ? { x: (exit.x + 0.5) * TILE, y: (exit.y + 0.5) * TILE } : null,
       keycard: keycard
@@ -91,7 +139,12 @@ export class Game {
     this.result = null;
     this.laserCooldown = 0;
     this.caughtBy = null;
-    this.setMessage(def.briefing, 5);
+    this.message = '';
+    this.messageTimer = 0;
+    this.particles = [];
+    this.floaters = [];
+    this.briefing = true;
+    this.briefTimer = 6;
   }
 
   get doorsOpen() {
@@ -105,9 +158,11 @@ export class Game {
 
   // ---- flow ----
 
-  startLevel(index) {
+  startLevel(index, skipBrief) {
     if (index >= LEVELS.length) return;
     this.loadLevel(index);
+    // The mission brief overlays the live level; staging hooks skip it.
+    if (skipBrief) this.briefing = false;
     this.state = 'playing';
   }
 
@@ -116,6 +171,7 @@ export class Game {
     const keepDetections = this.stats.detections;
     const keepSpotted = this.everSpotted;
     this.loadLevel(this.levelIndex);
+    this.briefing = false; // a retry goes straight back in, no second brief
     this.stats.detections = keepDetections;
     this.everSpotted = keepSpotted;
     this.state = 'playing';
@@ -149,6 +205,7 @@ export class Game {
     }
     saveProgress(this.progress);
     this.sound.win();
+    this.stampAt = this.uiTime;
     this.state = this.levelIndex === LEVELS.length - 1 ? 'victory' : 'complete';
   }
 
@@ -167,10 +224,27 @@ export class Game {
   // ---- per-frame update ----
 
   update(dt, input) {
+    this.uiTime += dt;
+    this.updateFx(dt);
     if (this.messageTimer > 0) this.messageTimer -= dt;
     if (this.alarmFlash > 0) this.alarmFlash = Math.max(0, this.alarmFlash - dt * 1.5);
     if (this.laserCooldown > 0) this.laserCooldown -= dt;
 
+    // The mission brief overlays the live level: the world keeps moving
+    // behind it, and the first input (or the timer) deploys the operative.
+    // A deploying click is swallowed so it never doubles as a coin throw.
+    if (this.briefing && this.state === 'playing') {
+      this.briefTimer -= dt;
+      const mv = input.moveVector();
+      if (input.clicked) {
+        this.briefing = false;
+        input.clicked = false;
+      } else if (
+        this.briefTimer <= 0 || input.pressed.size > 0 || input.keys.size > 0 || mv.x !== 0 || mv.y !== 0
+      ) {
+        this.briefing = false;
+      }
+    }
     if (this.state === 'title') {
       this.updateTitle(input);
       return;
@@ -257,6 +331,9 @@ export class Game {
         best.knockOut();
         this.stats.takedowns += 1;
         this.sound.takedown();
+        this.burst(best.x, best.y, '#ffb3ab', 16, 110);
+        this.burst(best.x, best.y, '#e8eefc', 8, 70);
+        this.floater(best.x, best.y - 18, '+100 TAKEDOWN', '#ffd23f');
         this.setMessage('Guard taken down. Stay quiet.', 2);
       }
     }
@@ -308,6 +385,8 @@ export class Game {
         level.keycard.taken = true;
         player.hasKeycard = true;
         this.sound.door();
+        this.burst(level.keycard.x, level.keycard.y, '#ffe066', 12, 80);
+        this.floater(level.keycard.x, level.keycard.y - 16, 'KEYCARD', '#ffe066');
         this.setMessage('Keycard acquired — locked doors are open.', 3);
       }
     }
@@ -317,6 +396,8 @@ export class Game {
         player.coins += 1;
         this.stats.coinsCollected += 1;
         this.sound.pickup();
+        this.burst(c.x, c.y, '#ffcf3f', 8, 60);
+        this.floater(c.x, c.y - 14, '+25 COIN', '#ffcf3f');
       }
     }
     if (level.intel && !level.intel.taken) {
@@ -324,6 +405,9 @@ export class Game {
         level.intel.taken = true;
         player.hasIntel = true;
         this.sound.intel();
+        this.burst(level.intel.x, level.intel.y, '#ffd23f', 22, 130);
+        this.burst(level.intel.x, level.intel.y, '#fff3b0', 10, 80);
+        this.floater(level.intel.x, level.intel.y - 20, 'INTEL SECURED', '#ffd23f');
         this.setMessage('Intel secured — reach the EXIT.', 3);
       }
     }

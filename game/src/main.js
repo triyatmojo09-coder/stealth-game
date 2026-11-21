@@ -21,6 +21,17 @@ game.input = input;
 let last = performance.now();
 let frames = 0;
 
+// Hold the first frames until the bundled display and UI fonts are in, so
+// no screenshot or first paint ever falls back to a system face.
+const fontsReady = Promise.all([
+  document.fonts.load("76px 'Black Ops One'"),
+  document.fonts.load("700 16px 'Rajdhani'"),
+  document.fonts.load("600 14px 'Rajdhani'"),
+  document.fonts.load("500 14px 'Rajdhani'"),
+]).then(() => {
+  window.__fontsReady = true;
+});
+
 function frame(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
   last = now;
@@ -63,7 +74,7 @@ window.__stageShot = function (name) {
   if (name === 'cover') {
     // Level 1, mid-infiltration: the player crouches in the dark intel room
     // just below a guard's sweeping cone; the intel glints top-right.
-    game.startLevel(0);
+    game.startLevel(0, true);
     stagePlayer(31, 4, true);
     const gd = stageGuard(0, 28, 4, -45);
     gd.meter = 0.45;
@@ -73,7 +84,7 @@ window.__stageShot = function (name) {
   } else if (name === 'vault') {
     // Level 2: the player, keycard in hand, times the laser grid in front
     // of the vault while a guard patrols the far side and a camera sweeps.
-    game.startLevel(1);
+    game.startLevel(1, true);
     game.player.hasKeycard = true;
     game.level.keycard.taken = true;
     stagePlayer(32, 3, true);
@@ -84,7 +95,7 @@ window.__stageShot = function (name) {
   } else if (name === 'core') {
     // Level 3: the player slips past the core's laser wall as two guards
     // and a camera work the room around them.
-    game.startLevel(2);
+    game.startLevel(2, true);
     stagePlayer(16, 13, true);
     game.player.angle = Math.PI;
     stageGuard(0, 17, 5, 90);
@@ -93,7 +104,7 @@ window.__stageShot = function (name) {
     game.setMessage('The core. Ghost it — never be spotted.', 6);
   } else if (name === 'grade') {
     // Level 1, finished clean: the grade screen after a ghost run.
-    game.startLevel(0);
+    game.startLevel(0, true);
     game.player.hasIntel = true;
     game.level.intel.taken = true;
     const e = tileCenter(37, 19);

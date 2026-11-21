@@ -8,6 +8,14 @@ An original top-down 2D stealth game. Infiltrate three facilities, steal the
 intel, and reach the exit unseen. Made for the make.fun bounty
 [Make the best stealth game](https://make.fun/bounty/best-stealth-game-20261121-1759).
 
+Every infiltration opens with a **mission brief** — an operation name, the
+objective list, and site intel written from that facility's actual layout
+(guard counts, patrol shapes, laser timing, where the dark ground runs).
+The presentation is an ops-console look: bundled stencil and condensed
+typefaces, bevelled wall blocks, plate-metal floors with light pools and
+deep shadow carpet, gradient vision cones that warm from amber to red as a
+guard's suspicion climbs, and a stencil grade stamp on every clear.
+
 ## How it plays
 
 You are a lone infiltrator in a hooded teal cloak. Every facility is a
@@ -37,10 +45,12 @@ laser grids.
 
 ## Levels
 
-1. **The Archive** — learn the ropes: two guards, one camera, one shadowy
-   intel room.
-2. **The Vault** — a keycard door and a laser grid guard the intel.
-3. **The Core** — four guards, three cameras, two laser grids. Ghost it.
+1. **The Archive** — *Operation Quiet Ledger.* Two guards, one camera, and
+   an unlit reading room where the cipher ledger sits.
+2. **The Vault** — *Operation Cold Vault.* A keycard in the teller office, a
+   timed laser grid on the vault approach, three guards.
+3. **The Core** — *Operation Dead Signal.* Four guards, three cameras, two
+   laser grids, and a maintenance strip of pure dark. Ghost it.
 
 Grades (S/A/B/C) reward speed, clean runs and ghost bonuses. Progress and
 best grades are saved in localStorage; finished levels unlock the next one.
@@ -63,6 +73,9 @@ best grades are saved in localStorage; finished levels unlock the next one.
   requests. Open `game/index.html` in a desktop browser and play.
 - Canvas 2D rendering, ES modules, WebAudio sound effects synthesized in
   code (footsteps, coin clinks, alert stings, win arpeggio).
+- Type is bundled, never loaded: subset Black Ops One (display) and Rajdhani
+  (HUD/body) woff2 files under `game/assets/fonts/`, both open-source
+  (OFL), subset to the game's character set — about 44 KB in total.
 - Source is split by job: `config.js` (tuning), `levels.js` (the three
   facilities), `vision.js` (raycast sight), `guards.js` (guard and camera
   AI), `player.js`, `render.js`, `game.js` (state machine), `scoring.js`,

@@ -6,15 +6,45 @@
 <title>Shadow Protocol — a stealth game</title>
 <link rel="icon" href="data:,">
 <style>
+  /* Bundled type: Black Ops One for display, Rajdhani for HUD and body.
+     Subset woff2 files live beside the game — no network, ever. */
+  @font-face {
+    font-family: 'Black Ops One';
+    src: url('./assets/fonts/blackops.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Rajdhani';
+    src: url('./assets/fonts/rajdhani-medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Rajdhani';
+    src: url('./assets/fonts/rajdhani-semibold.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Rajdhani';
+    src: url('./assets/fonts/rajdhani-bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
   html, body {
     margin: 0;
     padding: 0;
-    background: #05070d;
+    background: #04060b;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: system-ui, sans-serif;
+    font-family: 'Rajdhani', sans-serif;
   }
   canvas {
     display: block;
