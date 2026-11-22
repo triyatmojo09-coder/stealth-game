@@ -12,22 +12,12 @@ export const FONT_DISPLAY = "'Black Ops One', 'Rajdhani', sans-serif";
 export const FONT_UI = "'Rajdhani', sans-serif";
 
 export const COLORS = {
-  // Floors: deep slate-navy plate metal, read at a glance against the walls.
-  floorA: '#232c3e',
-  floorB: '#202838',
-  floorSeam: 'rgba(6, 9, 16, 0.55)',
-  floorSheen: 'rgba(140, 170, 220, 0.05)',
-  carpetA: '#2d3352',
-  carpetB: '#29304c',
-  shadowFloor: '#0b101d',
-  shadowFloorB: '#090e19',
-  shadowEdge: '#31436b',
-  // Walls: bevelled blocks — dark base, lit top face, shadowed skirt.
-  wall: '#46587a',
-  wallTop: '#7186ad',
-  wallFace: '#54688c',
-  wallSide: '#232f47',
-  wallSeam: '#141c2d',
+  // Structure: dark steel-blue slabs and walls, read against the back wall.
+  slab: '#3d4c68',
+  slabTop: '#7d92b8',
+  slabFace: '#2c3850',
+  slabSide: '#1a2336',
+  slabSeam: '#10182a',
   // Vision cones: [inner, outer] gradient stops per watcher state.
   conePatrol: ['rgba(255, 216, 84, 0.30)', 'rgba(255, 196, 40, 0.02)'],
   conePatrolEdge: 'rgba(255, 214, 64, 0.5)',
@@ -53,6 +43,7 @@ export const COLORS = {
   keycard: '#ffe066',
   coin: '#ffcf3f',
   laser: '#ff2e4d',
+  ladder: '#66779c',
   // Interface.
   hudBg: 'rgba(7, 11, 20, 0.88)',
   hudLine: 'rgba(126, 166, 224, 0.35)',
@@ -64,36 +55,45 @@ export const COLORS = {
 };
 
 export const TUNING = {
-  // Player movement, tiles per second.
-  walkSpeed: 4.6,
-  sneakSpeed: 2.2,
+  // Physics (side view): gravity in px/s^2, speeds in tiles per second.
+  gravity: 1500,
+  maxFall: 880,
+  walkSpeed: 4.4,
+  sneakSpeed: 2.0, // crouched: slower, quieter, harder to spot
+  climbSpeed: 2.6,
+  // Body sizes in pixels.
+  bodyW: 20,
+  standH: 46,
+  crouchH: 28,
+  guardH: 46,
   // Guard movement, tiles per second.
-  guardPatrolSpeed: 1.7,
-  guardInvestigateSpeed: 2.4,
-  guardChaseSpeed: 3.1,
+  guardPatrolSpeed: 1.6,
+  guardInvestigateSpeed: 2.3,
+  guardChaseSpeed: 3.0,
   // Vision.
-  guardViewRange: 7.5,
-  guardViewHalfAngle: 0.61, // ~35 degrees each side
+  guardViewRange: 7.0, // tiles
+  guardViewHalfAngle: 0.40, // ~23 degrees each side of the facing axis
+  guardViewTilt: 0.10, // the axis tips slightly downward
   cameraViewRange: 6.5,
-  cameraViewHalfAngle: 0.5,
-  coneRays: 26,
+  cameraViewHalfAngle: 0.34,
+  coneRays: 22,
   // Detection meter 0..1. Fill per second while the watcher sees the player.
   detectFillClose: 1.5, // within 2 tiles, standing in the light
   detectFillFar: 0.28, // at max range
-  detectSneakFactor: 0.45,
-  detectShadowFactor: 0.3,
+  detectSneakFactor: 0.45, // crouched
+  detectShadowFactor: 0.3, // standing in a shadow zone
   detectDecay: 0.3,
   suspiciousAt: 0.35, // meter above this: guard gets suspicious
   alarmAt: 1.0,
   alarmLoseSightSeconds: 5, // unseen this long: alarm clears
-  catchDistance: 0.62, // tiles: an alarming guard this close catches you
+  catchRangeX: 26, // px: an alarming guard this close on your floor catches you
   // Coins.
   coinsStart: 3,
-  coinNoiseRadius: 6,
+  coinNoiseRadius: 6.5, // tiles
   coinNoiseSeconds: 2.5,
-  coinThrowRange: 7,
+  coinThrowSpeed: 560, // px/s before the lob lift
   // Takedown.
-  takedownRange: 1.35,
+  takedownRange: 1.3, // tiles, from directly behind
   // Lasers.
   laserOnSeconds: 2.4,
   laserOffSeconds: 1.5,
@@ -107,7 +107,7 @@ export const TUNING = {
 };
 
 // Par times (seconds) per level, used for the time bonus and grades.
-export const PAR_TIMES = [75, 110, 150];
+export const PAR_TIMES = [95, 130, 170];
 
 export const GAME_TITLE = 'SHADOW PROTOCOL';
 export const GAME_SUBTITLE = 'THREE SITES. ONE OPERATIVE. NO WITNESSES.';

@@ -1,7 +1,7 @@
 // SHADOW PROTOCOL — the game itself.
 // One job: own the state machine (title / playing / paused / caught /
 // complete / victory), load a level from its definition, and run one frame:
-// player, guards, cameras, lasers, coins, pickups, alarm and objectives.
+// player, guards, cameras, lasers, coin arcs, pickups, alarm, objectives.
 
 import { TILE, TUNING, PAR_TIMES } from './config.js';
 import { LEVELS, findTiles } from './levels.js';
@@ -11,6 +11,7 @@ import { SoundFX } from './audio.js';
 import { computeLevelScore, gradeFor } from './scoring.js';
 import { loadProgress, saveProgress } from './storage.js';
 import { pointToSegmentDistance } from './vision.js';
+import { isSolidTile } from './physics.js';
 
 export class Game {
   constructor(canvas) {
@@ -23,7 +24,8 @@ export class Game {
     this.levelIndex = 0;
     this.level = null;
     this.player = null;
-    this.thrownCoins = [];
+    this.thrownCoins = []; // landed coins, still ringing
+    this.projectiles = []; // coins in flight
     this.time = 0;
     this.stats = { detections: 0, takedowns: 0, coinsCollected: 0 };
     this.everSpotted = false;
@@ -55,7 +57,7 @@ export class Game {
       this.particles.push({
         x, y,
         vx: Math.cos(a) * v,
-        vy: Math.sin(a) * v,
+        vy: Math.sin(a) * v - 30,
         life: 0.45 + Math.random() * 0.3,
         maxLife: 0.75,
         size: 1.5 + Math.random() * 2.5,
@@ -72,8 +74,8 @@ export class Game {
     for (const p of this.particles) {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      p.vy += 300 * dt;
       p.vx *= 1 - 2.4 * dt;
-      p.vy *= 1 - 2.4 * dt;
       p.life -= dt;
     }
     this.particles = this.particles.filter((p) => p.life > 0);
@@ -95,8 +97,12 @@ export class Game {
     const intel = at('I');
     const exit = at('E');
     const keycard = findTiles(def, 'K')[0] || null;
+    // A marker stands on the floor below its cell: feet = the cell's
+    // bottom edge, which is that floor's top.
+    const feetOf = (t) => (t.y + 1) * TILE;
+    const centreOf = (t) => (t.x + 0.5) * TILE;
 
-    // Entity tiles become plain floor in the collision grid.
+    // Entity tiles become plain air in the collision grid.
     grid.forEach((row, y) => {
       row.forEach((cell, x) => {
         if (cell === 'P' || cell === 'I' || cell === 'E' || cell === 'K' || cell === 'o') {
@@ -105,32 +111,53 @@ export class Game {
       });
     });
 
-    this.level = {
+    // Ladder-top gaps: 'H' cells with solid floor beside them. They hold
+    // the player up like floor until he climbs down on purpose.
+    const ladderTops = new Set();
+    grid.forEach((row, y) => {
+      row.forEach((cell, x) => {
+        if (cell !== 'H') return;
+        const left = grid[y][x - 1];
+        const right = grid[y][x + 1];
+        if (left === '#' || right === '#') ladderTops.add(x + ',' + y);
+      });
+    });
+
+    const level = {
       def,
       grid,
+      ladderTops,
       name: def.name,
       op: def.op,
       objectives: def.objectives,
       intelNotes: def.intel,
-      intel: intel ? { x: (intel.x + 0.5) * TILE, y: (intel.y + 0.5) * TILE, taken: false } : null,
-      exit: exit ? { x: (exit.x + 0.5) * TILE, y: (exit.y + 0.5) * TILE } : null,
-      keycard: keycard
-        ? { x: (keycard.x + 0.5) * TILE, y: (keycard.y + 0.5) * TILE, taken: false }
-        : null,
-      coins: findTiles(def, 'o').map((t) => ({ x: (t.x + 0.5) * TILE, y: (t.y + 0.5) * TILE, taken: false })),
-      guards: def.guards.map((g) => new Guard(g, { grid })),
+      intel: intel ? { x: centreOf(intel), y: feetOf(intel), taken: false } : null,
+      exit: exit ? { x: centreOf(exit), y: feetOf(exit) } : null,
+      keycard: keycard ? { x: centreOf(keycard), y: feetOf(keycard), taken: false } : null,
+      coins: findTiles(def, 'o').map((t) => ({ x: centreOf(t), y: feetOf(t), taken: false })),
+      cover: def.cover.map((c) => ({
+        kind: c.kind,
+        x: c.tx * TILE,
+        y: c.floor * TILE - c.h * TILE,
+        w: c.w * TILE,
+        h: c.h * TILE,
+      })),
       cameras: def.cameras.map((c) => new Camera(c)),
       lasers: def.lasers.map((l) => ({
-        x1: (l.x1 + 0.5) * TILE,
-        y1: (l.y1 + 0.5) * TILE,
-        x2: (l.x2 + 0.5) * TILE,
-        y2: (l.y2 + 0.5) * TILE,
+        x1: l.x1 * TILE,
+        y1: l.y1 * TILE,
+        x2: l.x2 * TILE,
+        y2: l.y2 * TILE,
         phase: l.phase || 0,
         active: true,
       })),
+      guards: [],
     };
-    this.player = new Player((start.x + 0.5) * TILE, (start.y + 0.5) * TILE);
+    level.guards = def.guards.map((g) => new Guard(g, level));
+    this.level = level;
+    this.player = new Player(centreOf(start), feetOf(start));
     this.thrownCoins = [];
+    this.projectiles = [];
     this.time = 0;
     this.stats = { detections: 0, takedowns: 0, coinsCollected: 0 };
     this.everSpotted = false;
@@ -288,6 +315,42 @@ export class Game {
     this.handleClicks(input);
   }
 
+  // A flying coin lands: its clink is the lure. Guards within earshot on
+  // any floor turn toward it; guards on its own floor walk over.
+  landCoin(p) {
+    this.thrownCoins.push({ x: p.x, y: p.y, ttl: TUNING.coinNoiseSeconds });
+    this.sound.coinLand();
+    this.burst(p.x, p.y - 2, '#ffcf3f', 5, 50);
+    for (const g of this.level.guards) {
+      if (Math.hypot(g.x - p.x, g.y - p.y) <= TUNING.coinNoiseRadius * TILE) {
+        g.hearNoise(p.x, p.y);
+      }
+    }
+  }
+
+  updateCoins(dt) {
+    for (const p of this.projectiles) {
+      p.vy += TUNING.gravity * dt;
+      const steps = 4;
+      for (let i = 0; i < steps && !p.landed; i++) {
+        p.x += (p.vx * dt) / steps;
+        p.y += (p.vy * dt) / steps;
+        const tx = Math.floor(p.x / TILE);
+        const ty = Math.floor(p.y / TILE);
+        if (isSolidTile(this.level, tx, ty, this.doorsOpen)) {
+          // Back out to the last free point and settle there.
+          p.x -= (p.vx * dt) / steps;
+          p.y -= (p.vy * dt) / steps;
+          p.landed = true;
+        }
+      }
+      if (p.landed) this.landCoin(p);
+    }
+    this.projectiles = this.projectiles.filter((p) => !p.landed);
+    for (const c of this.thrownCoins) c.ttl -= dt;
+    this.thrownCoins = this.thrownCoins.filter((c) => c.ttl > 0);
+  }
+
   updatePlaying(dt, input) {
     if (input.wasPressed('Escape') || input.wasPressed('KeyP')) {
       this.state = 'paused';
@@ -303,17 +366,13 @@ export class Game {
 
     // Throw a coin toward the mouse (Q, or a click on the playfield).
     if ((input.wasPressed('KeyQ') || input.clicked) && player.coins > 0) {
-      const landing = player.throwCoin(input.mouseX, input.mouseY);
-      if (landing) {
-        this.thrownCoins.push({ x: landing.x, y: landing.y, ttl: TUNING.coinNoiseSeconds });
+      const p = player.throwCoin(input.mouseX, input.mouseY);
+      if (p) {
+        this.projectiles.push(p);
         this.sound.coin();
-        for (const g of level.guards) {
-          if (Math.hypot(g.x - landing.x, g.y - landing.y) <= TUNING.coinNoiseRadius * TILE) {
-            g.hearNoise(landing.x, landing.y);
-          }
-        }
       }
     }
+    this.updateCoins(dt);
 
     // Rear takedown (E): only from behind, only while the guard is unaware.
     if (input.wasPressed('KeyE')) {
@@ -321,7 +380,7 @@ export class Game {
       let bestDist = Infinity;
       for (const g of level.guards) {
         if (g.knocked || g.state === 'alarm') continue;
-        const d = Math.hypot(g.x - player.x, g.y - player.y);
+        const d = Math.abs(g.x - player.x);
         if (d < bestDist && g.playerIsBehind(player)) {
           best = g;
           bestDist = d;
@@ -331,9 +390,9 @@ export class Game {
         best.knockOut();
         this.stats.takedowns += 1;
         this.sound.takedown();
-        this.burst(best.x, best.y, '#ffb3ab', 16, 110);
-        this.burst(best.x, best.y, '#e8eefc', 8, 70);
-        this.floater(best.x, best.y - 18, '+100 TAKEDOWN', '#ffd23f');
+        this.burst(best.x, best.y - 20, '#ffb3ab', 16, 110);
+        this.burst(best.x, best.y - 20, '#e8eefc', 8, 70);
+        this.floater(best.x, best.y - 52, '+100 TAKEDOWN', '#ffd23f');
         this.setMessage('Guard taken down. Stay quiet.', 2);
       }
     }
@@ -367,63 +426,63 @@ export class Game {
       const cycle = TUNING.laserOnSeconds + TUNING.laserOffSeconds;
       lz.active = ((this.time + lz.phase) % cycle) < TUNING.laserOnSeconds;
       if (lz.active && this.laserCooldown <= 0) {
-        const d = pointToSegmentDistance(player.x, player.y, lz.x1, lz.y1, lz.x2, lz.y2);
-        if (d < TILE * 0.4) {
+        const probes = [
+          { x: player.x, y: player.y - player.h + 5 },
+          { x: player.x, y: player.y - player.h / 2 },
+          { x: player.x, y: player.y - 3 },
+        ];
+        const hit = probes.some((p) => pointToSegmentDistance(p.x, p.y, lz.x1, lz.y1, lz.x2, lz.y2) < 13);
+        if (hit) {
           this.laserCooldown = 2;
           this.triggerAlarm(player.x, player.y, 'laser');
         }
       }
     }
 
-    // Thrown coins fade out.
-    for (const c of this.thrownCoins) c.ttl -= dt;
-    this.thrownCoins = this.thrownCoins.filter((c) => c.ttl > 0);
-
-    // Pickups: keycard, coins, intel.
-    if (level.keycard && !level.keycard.taken) {
-      if (Math.hypot(player.x - level.keycard.x, player.y - level.keycard.y) < TILE * 0.8) {
-        level.keycard.taken = true;
-        player.hasKeycard = true;
-        this.sound.door();
-        this.burst(level.keycard.x, level.keycard.y, '#ffe066', 12, 80);
-        this.floater(level.keycard.x, level.keycard.y - 16, 'KEYCARD', '#ffe066');
-        this.setMessage('Keycard acquired — locked doors are open.', 3);
-      }
+    // Pickups: keycard, coins, intel — anything at hand height counts.
+    const near = (e) => Math.abs(player.x - e.x) < 30 && Math.abs(player.y - e.y) < 46;
+    if (level.keycard && !level.keycard.taken && near(level.keycard)) {
+      level.keycard.taken = true;
+      player.hasKeycard = true;
+      this.sound.door();
+      this.burst(level.keycard.x, level.keycard.y - 16, '#ffe066', 12, 80);
+      this.floater(level.keycard.x, level.keycard.y - 48, 'KEYCARD', '#ffe066');
+      this.setMessage('Keycard acquired — locked doors are open.', 3);
     }
     for (const c of level.coins) {
-      if (!c.taken && Math.hypot(player.x - c.x, player.y - c.y) < TILE * 0.8) {
+      if (!c.taken && near(c)) {
         c.taken = true;
         player.coins += 1;
         this.stats.coinsCollected += 1;
         this.sound.pickup();
-        this.burst(c.x, c.y, '#ffcf3f', 8, 60);
-        this.floater(c.x, c.y - 14, '+25 COIN', '#ffcf3f');
+        this.burst(c.x, c.y - 14, '#ffcf3f', 8, 60);
+        this.floater(c.x, c.y - 44, '+25 COIN', '#ffcf3f');
       }
     }
-    if (level.intel && !level.intel.taken) {
-      if (Math.hypot(player.x - level.intel.x, player.y - level.intel.y) < TILE * 0.8) {
-        level.intel.taken = true;
-        player.hasIntel = true;
-        this.sound.intel();
-        this.burst(level.intel.x, level.intel.y, '#ffd23f', 22, 130);
-        this.burst(level.intel.x, level.intel.y, '#fff3b0', 10, 80);
-        this.floater(level.intel.x, level.intel.y - 20, 'INTEL SECURED', '#ffd23f');
-        this.setMessage('Intel secured — reach the EXIT.', 3);
-      }
+    if (level.intel && !level.intel.taken && near(level.intel)) {
+      level.intel.taken = true;
+      player.hasIntel = true;
+      this.sound.intel();
+      this.burst(level.intel.x, level.intel.y - 18, '#ffd23f', 22, 130);
+      this.burst(level.intel.x, level.intel.y - 18, '#fff3b0', 10, 80);
+      this.floater(level.intel.x, level.intel.y - 52, 'INTEL SECURED', '#ffd23f');
+      this.setMessage('Intel secured — reach the EXIT.', 3);
     }
 
     // Exit: only counts once the intel is in hand.
-    if (player.hasIntel && level.exit) {
-      if (Math.hypot(player.x - level.exit.x, player.y - level.exit.y) < TILE * 0.8) {
-        this.finishLevel();
-        return;
-      }
+    if (player.hasIntel && level.exit && near(level.exit)) {
+      this.finishLevel();
+      return;
     }
 
-    // Caught: an alarming guard reached the player.
+    // Caught: an alarming guard reached the player on his floor.
     this.alarm = level.guards.some((g) => g.state === 'alarm');
     for (const g of level.guards) {
-      if (g.state === 'alarm' && Math.hypot(g.x - player.x, g.y - player.y) < TUNING.catchDistance * TILE) {
+      if (
+        g.state === 'alarm' &&
+        Math.abs(g.x - player.x) < TUNING.catchRangeX &&
+        Math.abs(g.y - player.y) < 30
+      ) {
         this.caughtBy = g;
         this.state = 'caught';
         this.sound.caught();
